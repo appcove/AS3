@@ -1,0 +1,10 @@
+Root:
+  +type: Object
+  name: String
+  age: Integer
+  birth: Date
+  height: Decimal
+  male: Bool
+  car:
+    +type: List
+    +ValueType: String
