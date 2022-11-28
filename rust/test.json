@@ -1,3 +1,9 @@
 {
-  "ciao": 10
+  "ciao": [
+    {
+      "figli": {
+        "dilec": null
+      }
+    }
+  ]
 }

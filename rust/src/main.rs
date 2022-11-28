@@ -2,7 +2,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, path};
 use thiserror::Error;
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 enum AS3Data {
@@ -12,6 +12,7 @@ enum AS3Data {
     Integer(i64),
     Decimal(f64),
     List(Vec<AS3Data>),
+    Null,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -45,6 +46,8 @@ enum AS3Validator {
     Boolean,
     #[serde(rename(serialize = "Date"))]
     Date,
+    #[serde(rename(serialize = "Nullable"))]
+    Nullable(Box<AS3Validator>),
 }
 
 impl From<&serde_json::Value> for AS3Data {
@@ -68,20 +71,37 @@ impl From<&serde_json::Value> for AS3Data {
                 }
             }
             serde_json::Value::Bool(inner) => AS3Data::Boolean(*inner),
-            serde_json::Value::Null => panic!(),
+            serde_json::Value::Null => AS3Data::Null,
         }
     }
 }
 
 impl AS3Validator {
     fn validate(&self, data: &AS3Data) -> Result<(), AS3ValidationError> {
+        self.check(data, &mut "ROOT".to_string())
+    }
+
+    fn check(&self, data: &AS3Data, path: &mut String) -> Result<(), AS3ValidationError> {
+        match (self, data) {
+            (AS3Validator::Nullable(..), AS3Data::Null) => return Ok(()),
+            (_, AS3Data::Null) => {
+                return Err(AS3ValidationError::NotNullableNull {
+                    path: path.to_string(),
+                })
+            }
+            _ => {}
+        };
+
         match (self, data) {
             (AS3Validator::Object(validator_inner), AS3Data::Object(data_inner)) => {
                 let res: Vec<Result<(), AS3ValidationError>> = validator_inner
                     .into_par_iter()
                     .map(|(validator_key, validator_value)| {
+                        let mut temp_path = path.clone();
+                        temp_path.push_str(" -> ");
+                        temp_path.push_str(&validator_key.as_str());
                         if let Some(value_from_key) = data_inner.get(validator_key) {
-                            return validator_value.validate(value_from_key);
+                            return validator_value.check(value_from_key, &mut temp_path);
                         }
                         Err(AS3ValidationError::MissingKey {
                             key: validator_key.clone(),
@@ -106,9 +126,12 @@ impl AS3Validator {
                 AS3Data::Object(data_inner),
             ) => {
                 for (key_data, value_data) in data_inner {
+                    let mut temp_path = path.clone();
+                    temp_path.push_str(" -> ");
+                    temp_path.push_str(&key_data.as_str());
                     match (
-                        value_type.validate(value_data),
-                        AS3Validator::check_map_key_value(key_data, key_type),
+                        value_type.check(value_data, &mut temp_path),
+                        AS3Validator::check_map_key_value(key_data, key_type, &mut temp_path),
                     ) {
                         (Ok(_), Ok(_)) => {}
                         (Err(e), _) => return Err(e),
@@ -197,11 +220,11 @@ impl AS3Validator {
                 Ok(())
             }
             (AS3Validator::List(items_type), AS3Data::List(items)) => {
-                // Ok(items.iter().all(|item| items_type.validate(item)))
+                // Ok(items.iter().all(|item| items_type.check(item)))
 
                 let res = items
                     .iter()
-                    .map(|item| items_type.validate(item))
+                    .map(|item| items_type.check(item, path))
                     .collect::<Vec<Result<(), AS3ValidationError>>>();
 
                 match res
@@ -213,7 +236,7 @@ impl AS3Validator {
                 }
             }
             (AS3Validator::Date, AS3Data::String(items)) => {
-                // Ok(items.iter().all(|item| items_type.validate(item)))
+                // Ok(items.iter().all(|item| items_type.check(item)))
                 let date_regex =
                     Regex::new(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$").unwrap();
 
@@ -234,15 +257,19 @@ impl AS3Validator {
         }
     }
 
-    fn check_map_key_value(key: &String, wanted_type: &AS3Validator) -> Result<(), String> {
+    fn check_map_key_value(
+        key: &String,
+        wanted_type: &AS3Validator,
+        path: &mut String,
+    ) -> Result<(), String> {
         let _ = match wanted_type {
-            AS3Validator::String { .. } => wanted_type.validate(&AS3Data::String(key.clone())),
+            AS3Validator::String { .. } => wanted_type.check(&AS3Data::String(key.clone()), path),
             AS3Validator::Integer { .. } => {
                 let Ok(n) = key.clone().parse::<i64>() else {
                     return Err(format!("The Key `{}` can't be converted to an Integer", key));
                 };
 
-                match wanted_type.validate(&&AS3Data::Integer(n)) {
+                match wanted_type.check(&&AS3Data::Integer(n), path) {
                     Ok(()) => Ok(()),
                     Err(e) => return Err(e.to_string()),
                 }
@@ -251,7 +278,7 @@ impl AS3Validator {
                 "true" | "false" | "1" | "0" => Ok(()),
                 _ => return Err(format!("The Key `{}` can't be converted to a Boolean", key)),
             },
-            AS3Validator::Date => match wanted_type.validate(&AS3Data::String(key.clone())) {
+            AS3Validator::Date => match wanted_type.check(&AS3Data::String(key.clone()), path) {
                 Ok(())=> Ok(()),
                 _ => return Err(format!("The Key `{}` can't be converted to a Date", key)),
             },
@@ -294,7 +321,9 @@ impl AS3Validator {
             _ => return Err(format!("Type definition missing for {path} ")),
         };
 
-        let validator = match (validator_type.as_str(), yaml_config) {
+        let nullable = validator_type.contains("?");
+
+        let validator = match (validator_type.replace("?", "").as_str(), yaml_config) {
             ("Object", serde_yaml::Value::Mapping(inner)) => {
                 let x: HashMap<String, AS3Validator> = inner
                     .into_iter()
@@ -309,6 +338,7 @@ impl AS3Validator {
                         )
                     })
                     .collect();
+
                 AS3Validator::Object(x)
             }
             ("String", serde_yaml::Value::Mapping(inner)) => {
@@ -467,7 +497,7 @@ impl AS3Validator {
             ("Bool" | "Boolean", serde_yaml::Value::Mapping(..)) => AS3Validator::Boolean,
 
             // Responsable for the abbreviated syntax
-            (_, serde_yaml::Value::String(type_def)) => match type_def.as_str() {
+            (type_def, serde_yaml::Value::String(..)) => match type_def {
                 "String" => AS3Validator::String {
                     regex: None,
                     max_length: None,
@@ -492,7 +522,11 @@ impl AS3Validator {
             _ => return Err(format!(" {validator_type} is an unsupported type")),
         };
 
-        Ok(validator)
+        if nullable {
+            Ok(AS3Validator::Nullable(Box::new(validator)))
+        } else {
+            Ok(validator)
+        }
     }
 }
 
@@ -531,6 +565,9 @@ enum AS3ValidationError {
         current_lenght: i64,
         min_length: i64,
     },
+
+    #[error(" {} set as not nullable is null", .path)]
+    NotNullableNull { path: String },
 }
 
 fn main() {

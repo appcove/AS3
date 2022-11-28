@@ -1,10 +1,9 @@
 Root:
   +type: Object
-  name: String
-  age: Integer
-  birth: Date
-  height: Decimal
-  male: Bool
-  car:
+  ciao:
     +type: List
-    +ValueType: String
+    +ValueType:
+      +type: Object
+      figli:
+        +type: Object
+        dilec: String?
