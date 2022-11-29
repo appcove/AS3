@@ -4,7 +4,7 @@ use serde_json::json;
 fn verify(
     data: &serde_json::Value,
     validator_config: &serde_yaml::Value,
-    expected: Result<(), AS3ValidationError>,
+    expected: Result<(), As3JsonPath<AS3ValidationError>>,
 ) {
     let data = AS3Data::from(data);
     let validator = AS3Validator::from(&validator_config).unwrap();
@@ -88,13 +88,16 @@ fn with_decimal_error() {
     verify(
         &data,
         &validator,
-        Err(AS3ValidationError::TypeError {
-            expected: AS3Validator::Integer {
-                minimum: None,
-                maximum: None,
+        Err(As3JsonPath(
+            "ROOT -> vehicles -> list -> year".to_string(),
+            AS3ValidationError::TypeError {
+                expected: AS3Validator::Integer {
+                    minimum: None,
+                    maximum: None,
+                },
+                got: AS3Data::Decimal(20.18),
             },
-            got: AS3Data::Decimal(20.18),
-        }),
+        )),
     );
 }
 #[test]
@@ -131,13 +134,16 @@ fn with_string_error() {
     verify(
         &data,
         &validator,
-        Err(AS3ValidationError::TypeError {
-            expected: AS3Validator::Integer {
-                minimum: None,
-                maximum: None,
+        Err(As3JsonPath(
+            "ROOT -> vehicles -> list -> year".to_string(),
+            AS3ValidationError::TypeError {
+                expected: AS3Validator::Integer {
+                    minimum: None,
+                    maximum: None,
+                },
+                got: AS3Data::String("2018".to_string()),
             },
-            got: AS3Data::String("2018".to_string()),
-        }),
+        )),
     );
 }
 
@@ -175,10 +181,13 @@ fn with_regex_error() {
     verify(
         &data,
         &validator,
-        Err(AS3ValidationError::RegexError {
-            word: "ford".to_string(),
-            regex: "^[A-Z][a-z]".to_string(),
-        }),
+        Err(As3JsonPath(
+            "ROOT -> vehicles -> list -> maker".to_string(),
+            AS3ValidationError::RegexError {
+                word: "ford".to_string(),
+                regex: "^[A-Z][a-z]".to_string(),
+            },
+        )),
     );
 }
 
@@ -208,10 +217,13 @@ fn with_minimum_error() {
 
     assert_eq!(
         validator.validate(&AS3Data::from(&json)),
-        Err(AS3ValidationError::Minimum {
-            number: 18.0,
-            minimum: 20.0
-        })
+        Err(As3JsonPath(
+            "ROOT -> age".to_string(),
+            AS3ValidationError::Minimum {
+                number: 18.0,
+                minimum: 20.0
+            }
+        ))
     );
 
     let json = json!({
@@ -221,10 +233,13 @@ fn with_minimum_error() {
 
     assert_eq!(
         validator.validate(&AS3Data::from(&json)),
-        Err(AS3ValidationError::Minimum {
-            number: 0.0,
-            minimum: 2.0
-        })
+        Err(As3JsonPath(
+            "ROOT -> children".to_string(),
+            AS3ValidationError::Minimum {
+                number: 0.0,
+                minimum: 2.0
+            }
+        ))
     );
 
     let json = json!({
@@ -276,9 +291,12 @@ fn with_missing_field_error_validator_derive() {
     verify(
         &data,
         &validator,
-        Err(AS3ValidationError::MissingKey {
-            key: "maker".to_string(),
-        }),
+        Err(As3JsonPath(
+            "ROOT -> vehicles -> maker".to_string(),
+            AS3ValidationError::MissingKey {
+                key: "maker".to_string(),
+            },
+        )),
     );
 
     data["vehicles"]["maker"] = serde_json::Value::String("tesla".to_string());
@@ -325,9 +343,12 @@ fn with_list() {
     verify(
         &data,
         &validator,
-        Err(AS3ValidationError::MissingKey {
-            key: "year".to_string(),
-        }),
+        Err(As3JsonPath(
+            "ROOT -> students -> year".to_string(),
+            AS3ValidationError::MissingKey {
+                key: "year".to_string(),
+            },
+        )),
     );
 
     let data2 = json!(
@@ -344,14 +365,17 @@ fn with_list() {
     verify(
         &data2,
         &validator,
-        Err(AS3ValidationError::TypeError {
-            expected: AS3Validator::String {
-                regex: None,
-                max_length: None,
-                min_length: None,
+        Err(As3JsonPath(
+            "ROOT -> students -> grade".to_string(),
+            AS3ValidationError::TypeError {
+                expected: AS3Validator::String {
+                    regex: None,
+                    max_length: None,
+                    min_length: None,
+                },
+                got: AS3Data::Integer(20),
             },
-            got: AS3Data::Integer(20),
-        }),
+        )),
     );
 }
 
@@ -478,8 +502,11 @@ fn with_date_and_map() {
     verify(
         &data,
         &validator_config,
-        Err(AS3ValidationError::Generic(
-            "The Key `2020/10/15` can't be converted to a Date".to_string(),
+        Err(As3JsonPath(
+            "ROOT -> 2020/10/15".to_string(),
+            AS3ValidationError::Generic(
+                "The Key `2020/10/15` can't be converted to a Date".to_string(),
+            ),
         )),
     );
 }

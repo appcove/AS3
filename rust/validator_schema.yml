@@ -6,4 +6,6 @@ Root:
       +type: Object
       figli:
         +type: Object
-        dilec: String?
+        dilec:
+          +type: Integer
+          +max: 7

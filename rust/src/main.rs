@@ -77,24 +77,29 @@ impl From<&serde_json::Value> for AS3Data {
 }
 
 impl AS3Validator {
-    fn validate(&self, data: &AS3Data) -> Result<(), AS3ValidationError> {
+    fn validate(&self, data: &AS3Data) -> Result<(), As3JsonPath<AS3ValidationError>> {
         self.check(data, &mut "ROOT".to_string())
     }
 
-    fn check(&self, data: &AS3Data, path: &mut String) -> Result<(), AS3ValidationError> {
+    fn check(
+        &self,
+        data: &AS3Data,
+        path: &mut String,
+    ) -> Result<(), As3JsonPath<AS3ValidationError>> {
         match (self, data) {
             (AS3Validator::Nullable(..), AS3Data::Null) => return Ok(()),
             (_, AS3Data::Null) => {
-                return Err(AS3ValidationError::NotNullableNull {
-                    path: path.to_string(),
-                })
+                return Err(As3JsonPath(
+                    path.to_string(),
+                    AS3ValidationError::NotNullableNull,
+                ))
             }
             _ => {}
         };
 
         match (self, data) {
             (AS3Validator::Object(validator_inner), AS3Data::Object(data_inner)) => {
-                let res: Vec<Result<(), AS3ValidationError>> = validator_inner
+                let res: Vec<Result<(), As3JsonPath<AS3ValidationError>>> = validator_inner
                     .into_par_iter()
                     .map(|(validator_key, validator_value)| {
                         let mut temp_path = path.clone();
@@ -103,16 +108,18 @@ impl AS3Validator {
                         if let Some(value_from_key) = data_inner.get(validator_key) {
                             return validator_value.check(value_from_key, &mut temp_path);
                         }
-                        Err(AS3ValidationError::MissingKey {
-                            key: validator_key.clone(),
-                            // context: data_inner.into_iter().map().collect(),
-                        })
+                        Err(As3JsonPath(
+                            temp_path.to_string(),
+                            AS3ValidationError::MissingKey {
+                                key: validator_key.clone(),
+                            },
+                        ))
                     })
                     .collect();
 
                 match res
                     .into_iter()
-                    .collect::<Result<Vec<()>, AS3ValidationError>>()
+                    .collect::<Result<Vec<()>, As3JsonPath<AS3ValidationError>>>()
                 {
                     Ok(_) => Ok(()),
                     Err(e) => Err(e),
@@ -135,7 +142,12 @@ impl AS3Validator {
                     ) {
                         (Ok(_), Ok(_)) => {}
                         (Err(e), _) => return Err(e),
-                        (_, Err(e)) => return Err(AS3ValidationError::Generic(e)),
+                        (_, Err(e)) => {
+                            return Err(As3JsonPath(
+                                temp_path.to_string(),
+                                AS3ValidationError::Generic(e),
+                            ))
+                        }
                     };
                 }
                 Ok(())
@@ -143,19 +155,25 @@ impl AS3Validator {
             (AS3Validator::Integer { minimum, maximum }, AS3Data::Integer(number)) => {
                 if let Some(minimum) = minimum {
                     if number < minimum {
-                        return Err(AS3ValidationError::Minimum {
-                            number: *number as f64,
-                            minimum: *minimum as f64,
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::Minimum {
+                                number: *number as f64,
+                                minimum: *minimum as f64,
+                            },
+                        ));
                     }
                 }
 
                 if let Some(maximum) = maximum {
                     if number > maximum {
-                        return Err(AS3ValidationError::Maximum {
-                            number: *number as f64,
-                            maximum: *maximum as f64,
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::Maximum {
+                                number: *number as f64,
+                                maximum: *maximum as f64,
+                            },
+                        ));
                     }
                 }
                 Ok(())
@@ -163,19 +181,25 @@ impl AS3Validator {
             (AS3Validator::Decimal { minimum, maximum }, AS3Data::Decimal(number)) => {
                 if let Some(minimum) = minimum {
                     if number < minimum {
-                        return Err(AS3ValidationError::Minimum {
-                            number: *number as f64,
-                            minimum: *minimum as f64,
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::Minimum {
+                                number: *number as f64,
+                                minimum: *minimum as f64,
+                            },
+                        ));
                     }
                 }
 
                 if let Some(maximum) = maximum {
                     if number > maximum {
-                        return Err(AS3ValidationError::Minimum {
-                            number: *number as f64,
-                            minimum: *maximum as f64,
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::Minimum {
+                                number: *number as f64,
+                                minimum: *maximum as f64,
+                            },
+                        ));
                     }
                 }
                 Ok(())
@@ -191,29 +215,38 @@ impl AS3Validator {
                 if let Some(regex) = regex {
                     let re = Regex::new(regex).unwrap();
                     if !re.is_match(string) {
-                        return Err(AS3ValidationError::RegexError {
-                            word: string.to_owned(),
-                            regex: regex.to_owned(),
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::RegexError {
+                                word: string.to_owned(),
+                                regex: regex.to_owned(),
+                            },
+                        ));
                     }
                 };
                 if let Some(min_length) = min_length {
                     if string.len() < *min_length as usize {
-                        return Err(AS3ValidationError::MinimumString {
-                            string: string.clone(),
-                            current_lenght: string.len() as i64,
-                            min_length: *min_length,
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::MinimumString {
+                                string: string.clone(),
+                                current_lenght: string.len() as i64,
+                                min_length: *min_length,
+                            },
+                        ));
                     }
                 }
 
                 if let Some(max_length) = max_length {
                     if string.len() > *max_length as usize {
-                        return Err(AS3ValidationError::MaximumString {
-                            string: string.clone(),
-                            current_lenght: string.len() as i64,
-                            max_length: *max_length,
-                        });
+                        return Err(As3JsonPath(
+                            path.to_string(),
+                            AS3ValidationError::MaximumString {
+                                string: string.clone(),
+                                current_lenght: string.len() as i64,
+                                max_length: *max_length,
+                            },
+                        ));
                     }
                 }
 
@@ -225,11 +258,11 @@ impl AS3Validator {
                 let res = items
                     .iter()
                     .map(|item| items_type.check(item, path))
-                    .collect::<Vec<Result<(), AS3ValidationError>>>();
+                    .collect::<Vec<Result<(), As3JsonPath<AS3ValidationError>>>>();
 
                 match res
                     .into_iter()
-                    .collect::<Result<Vec<()>, AS3ValidationError>>()
+                    .collect::<Result<Vec<()>, As3JsonPath<AS3ValidationError>>>()
                 {
                     Ok(_) => Ok(()),
                     Err(e) => Err(e),
@@ -241,19 +274,25 @@ impl AS3Validator {
                     Regex::new(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$").unwrap();
 
                 if !date_regex.is_match(items) {
-                    return Err(AS3ValidationError::Generic(format!(
-                        " `{}` can't be converted to a valid date. [Supported YYYY-MM-DD] ",
-                        items
-                    )));
+                    return Err(As3JsonPath(
+                        path.to_string(),
+                        AS3ValidationError::Generic(format!(
+                            " `{}` can't be converted to a valid date. [Supported YYYY-MM-DD] ",
+                            items
+                        )),
+                    ));
                 };
                 Ok(())
             }
             (AS3Validator::Boolean, AS3Data::Boolean(..)) => Ok(()),
 
-            _ => Err(AS3ValidationError::TypeError {
-                expected: self.clone(),
-                got: data.clone(),
-            }),
+            _ => Err(As3JsonPath(
+                path.to_string(),
+                AS3ValidationError::TypeError {
+                    expected: self.clone(),
+                    got: data.clone(),
+                },
+            )),
         }
     }
 
@@ -531,43 +570,45 @@ impl AS3Validator {
 }
 
 // Errors that can occurs while the data is being evaluated
+
+#[derive(Error, Debug, PartialEq)]
+#[error("Error : {0} in [{1}]. ")]
+struct As3JsonPath<T: std::error::Error>(String, T);
+
 #[derive(Error, Debug, PartialEq)]
 enum AS3ValidationError {
-    #[error("Mismatched types. Expected `{:?}` got `{:?}` . " , .expected , .got)]
+    #[error("Mismatched types. Expected `{:?}` got `{:?}` ." , .expected , .got)]
     TypeError {
         expected: AS3Validator,
         got: AS3Data,
     },
     #[error("Key {} is not in " , .key )]
-    MissingKey {
-        key: String,
-        // context: HashMap<String, Box<AS3Data>>,
-    },
-    #[error("Word {} is not following the `{}` regex " , .word, .regex )]
+    MissingKey { key: String },
+    #[error("Word {} is not following the `{}` regex  ." , .word, .regex )]
     RegexError { word: String, regex: String },
 
-    #[error(" `{}` is under the minumum of `{}` . " , .number , .minimum)]
+    #[error(" `{}` is under the minumum of `{}`  ." , .number , .minimum)]
     Minimum { number: f64, minimum: f64 },
-    #[error(" `{}` is above the maximum of `{}` . " , .number , .maximum)]
+    #[error(" `{}` is above the maximum of `{}` ." , .number , .maximum)]
     Maximum { number: f64, maximum: f64 },
-    #[error(" Errro during validation: {0} ")]
+    #[error(" Error during validation: {0} ")]
     Generic(String),
-    #[error(" {} is {} charcters long, above the max lenght allowed of {}. " , .string, .current_lenght , .max_length)]
+    #[error(" {} is {} charcters long, above the max lenght allowed of {} ." , .string, .current_lenght , .max_length)]
     MaximumString {
         string: String,
         current_lenght: i64,
         max_length: i64,
     },
 
-    #[error(" {} is {} charcters long, above the max lenght allowed of {}. " , .string, .current_lenght , .min_length)]
+    #[error(" {} is {} charcters long, above the max lenght allowed of {}." , .string, .current_lenght , .min_length)]
     MinimumString {
         string: String,
         current_lenght: i64,
         min_length: i64,
     },
 
-    #[error(" {} set as not nullable is null", .path)]
-    NotNullableNull { path: String },
+    #[error("field not set as not nullable but is a null")]
+    NotNullableNull,
 }
 
 fn main() {
