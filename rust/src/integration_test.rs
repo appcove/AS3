@@ -1,6 +1,12 @@
 use super::*;
 use serde_json::json;
 
+use crate::{
+    error::{AS3ValidationError, As3JsonPath},
+    validator::AS3Validator,
+    AS3Data,
+};
+
 fn verify(
     data: &serde_json::Value,
     validator_config: &serde_yaml::Value,
