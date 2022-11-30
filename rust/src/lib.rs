@@ -3,6 +3,8 @@ use std::collections::HashMap;
 
 pub mod error;
 pub mod validator;
+use error::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use validator::AS3Validator;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -40,6 +42,23 @@ impl From<&serde_json::Value> for AS3Data {
             serde_json::Value::Null => AS3Data::Null,
         }
     }
+}
+
+#[pyfunction]
+pub fn verify(data: String, validator_config: String) -> PyResult<()> {
+    let data = AS3Data::from(&serde_json::from_str(&data).unwrap());
+    let ym = serde_yaml::from_str(&validator_config).unwrap();
+    let validator = AS3Validator::from(&ym).unwrap();
+    match validator.validate(&data) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(PyTypeError::new_err(e.to_string())),
+    }
+}
+
+#[pymodule]
+fn as3(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(verify, m)?)?;
+    Ok(())
 }
 
 #[cfg(test)]
