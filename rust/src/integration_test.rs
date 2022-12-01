@@ -1,7 +1,6 @@
 use super::*;
 use serde_json::json;
 
-
 use crate::{
     error::{AS3ValidationError, As3JsonPath},
     validator::AS3Validator,
@@ -245,6 +244,7 @@ fn with_minimum_error() {
             AS3ValidationError::MinimumInteger {
                 number: 0,
                 minimum: 2
+            }
         ))
     );
 
