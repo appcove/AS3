@@ -76,7 +76,7 @@ impl AS3Validator {
                             return validator_value.check(value_from_key, &mut temp_path);
                         }
                         Err(As3JsonPath(
-                            temp_path.to_string(),
+                            path.to_string(),
                             AS3ValidationError::MissingKey {
                                 key: validator_key.clone(),
                             },
