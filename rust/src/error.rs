@@ -1,7 +1,7 @@
 use crate::{validator::AS3Validator, AS3Data};
 use thiserror::Error;
 #[derive(Error, Debug, PartialEq)]
-#[error("Error : {0} in [{1}]. ")]
+#[error("{1} in [{0}]. ")]
 pub struct As3JsonPath<T: std::error::Error>(pub String, pub T);
 
 #[derive(Error, Debug, PartialEq)]
