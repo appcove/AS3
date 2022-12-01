@@ -440,7 +440,7 @@ impl AS3Validator {
 
                 AS3Validator::Integer { minimum, maximum }
             }
-            ("Decimal", serde_yaml::Value::Mapping(inner)) => {
+            ("Decimal" | "Float", serde_yaml::Value::Mapping(inner)) => {
                 let maximum = if let Some(serde_yaml::Value::Number(max_length)) = inner.get("+max")
                 {
                     if let Some(max_length) = max_length.as_f64() {
