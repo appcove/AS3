@@ -1,7 +1,10 @@
 {
   "ciao": [
     {
-      "figli": {}
+
+      "figli": {
+        "dilec": 10
+      }
     }
   ]
 }

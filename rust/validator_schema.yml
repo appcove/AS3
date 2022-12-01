@@ -1,19 +1,12 @@
-{
-  "Root":
-    {
-      "+type": "Object",
-      "ciao":
-        {
-          "+type": "List",
-          "+ValueType":
-            {
-              "+type": "Object",
-              "figli":
-                {
-                  "+type": "Object",
-                  "dilec": { "+type": "Integer", "+max": 7 },
-                },
-            },
-        },
-    },
-}
+
+Root:
+  +type: Object
+  ciao:
+    +type: List
+    +ValueType:
+      +type: Object
+      figli:
+        +type: Object
+        dilec:
+          +type: Integer
+          +max: 7
