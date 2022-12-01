@@ -27,24 +27,6 @@ struct Args {
     input: PathBuf,
 }
 
-fn definition_from_file(file: &PathBuf) -> Result<serde_yaml::Value, String> {
-    if let Ok(yaml) =
-        serde_yaml::from_str::<serde_yaml::Value>(&std::fs::read_to_string(&file).unwrap())
-    {
-        return Ok(yaml);
-    };
-    Err(format!("{file:?} is neighter a json or a yaml definition"))
-}
-
-fn data_from_file(file: &PathBuf) -> Result<serde_json::Value, String> {
-    if let Ok(json) =
-        serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(&file).unwrap())
-    {
-        return Ok(json);
-    };
-    Err(format!("{file:?} is neighter a json or a yaml definition"))
-}
-
 fn main() -> Result<(), String> {
     let args = Args::parse();
 
