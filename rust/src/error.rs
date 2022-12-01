@@ -17,9 +17,13 @@ pub enum AS3ValidationError {
     RegexError { word: String, regex: String },
 
     #[error(" `{}` is under the minumum of `{}`" , .number , .minimum)]
-    Minimum { number: f64, minimum: f64 },
+    MinimumDouble { number: f64, minimum: f64 },
     #[error(" `{}` is above the maximum of `{}`" , .number , .maximum)]
-    Maximum { number: f64, maximum: f64 },
+    MaximumDouble { number: f64, maximum: f64 },
+    #[error(" `{}` is under the minumum of `{}`" , .number , .minimum)]
+    MinimumInteger { number: i64, minimum: i64 },
+    #[error(" `{}` is above the maximum of `{}`" , .number , .maximum)]
+    MaximumInteger { number: i64, maximum: i64 },
     #[error(" Error during validation: {0}")]
     Generic(String),
     #[error(" {} is {} charcters long, above the max lenght allowed of {} ." , .string, .current_lenght , .max_length)]

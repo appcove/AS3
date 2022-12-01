@@ -225,9 +225,9 @@ fn with_minimum_error() {
         validator.validate(&AS3Data::from(&json)),
         Err(As3JsonPath(
             "ROOT -> age".to_string(),
-            AS3ValidationError::Minimum {
-                number: 18.0,
-                minimum: 20.0
+            AS3ValidationError::MinimumInteger {
+                number: 18,
+                minimum: 20
             }
         ))
     );
@@ -241,9 +241,9 @@ fn with_minimum_error() {
         validator.validate(&AS3Data::from(&json)),
         Err(As3JsonPath(
             "ROOT -> children".to_string(),
-            AS3ValidationError::Minimum {
-                number: 0.0,
-                minimum: 2.0
+            AS3ValidationError::MinimumInteger {
+                number: 0,
+                minimum: 2
             }
         ))
     );

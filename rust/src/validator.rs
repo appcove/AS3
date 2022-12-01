@@ -124,9 +124,9 @@ impl AS3Validator {
                     if number < minimum {
                         return Err(As3JsonPath(
                             path.to_string(),
-                            AS3ValidationError::Minimum {
-                                number: *number as f64,
-                                minimum: *minimum as f64,
+                            AS3ValidationError::MinimumInteger {
+                                number: *number,
+                                minimum: *minimum,
                             },
                         ));
                     }
@@ -136,9 +136,9 @@ impl AS3Validator {
                     if number > maximum {
                         return Err(As3JsonPath(
                             path.to_string(),
-                            AS3ValidationError::Maximum {
-                                number: *number as f64,
-                                maximum: *maximum as f64,
+                            AS3ValidationError::MaximumInteger {
+                                number: *number,
+                                maximum: *maximum,
                             },
                         ));
                     }
@@ -150,7 +150,7 @@ impl AS3Validator {
                     if number < minimum {
                         return Err(As3JsonPath(
                             path.to_string(),
-                            AS3ValidationError::Minimum {
+                            AS3ValidationError::MinimumDouble {
                                 number: *number as f64,
                                 minimum: *minimum as f64,
                             },
@@ -162,7 +162,7 @@ impl AS3Validator {
                     if number > maximum {
                         return Err(As3JsonPath(
                             path.to_string(),
-                            AS3ValidationError::Minimum {
+                            AS3ValidationError::MinimumDouble {
                                 number: *number as f64,
                                 minimum: *maximum as f64,
                             },
