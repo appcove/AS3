@@ -1,6 +1,12 @@
 use super::*;
 use serde_json::json;
 
+use crate::{
+    error::{AS3ValidationError, As3JsonPath},
+    validator::AS3Validator,
+    AS3Data,
+};
+
 fn verify(
     data: &serde_json::Value,
     validator_config: &serde_yaml::Value,
@@ -219,9 +225,9 @@ fn with_minimum_error() {
         validator.validate(&AS3Data::from(&json)),
         Err(As3JsonPath(
             "ROOT -> age".to_string(),
-            AS3ValidationError::Minimum {
-                number: 18.0,
-                minimum: 20.0
+            AS3ValidationError::MinimumInteger {
+                number: 18,
+                minimum: 20
             }
         ))
     );
@@ -235,9 +241,9 @@ fn with_minimum_error() {
         validator.validate(&AS3Data::from(&json)),
         Err(As3JsonPath(
             "ROOT -> children".to_string(),
-            AS3ValidationError::Minimum {
-                number: 0.0,
-                minimum: 2.0
+            AS3ValidationError::MinimumInteger {
+                number: 0,
+                minimum: 2
             }
         ))
     );
@@ -292,7 +298,7 @@ fn with_missing_field_error_validator_derive() {
         &data,
         &validator,
         Err(As3JsonPath(
-            "ROOT -> vehicles -> maker".to_string(),
+            "ROOT -> vehicles".to_string(),
             AS3ValidationError::MissingKey {
                 key: "maker".to_string(),
             },
@@ -344,7 +350,7 @@ fn with_list() {
         &data,
         &validator,
         Err(As3JsonPath(
-            "ROOT -> students -> year".to_string(),
+            "ROOT -> students".to_string(),
             AS3ValidationError::MissingKey {
                 key: "year".to_string(),
             },
